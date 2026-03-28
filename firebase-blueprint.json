@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "Song": {
+      "title": "Song",
+      "description": "A song or hymn in the user's library",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the song"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the song"
+        },
+        "artist": {
+          "type": "string",
+          "description": "Artist or author of the song"
+        },
+        "content": {
+          "type": "string",
+          "description": "HTML or plain text content of the song lyrics"
+        },
+        "sections": {
+          "type": "string",
+          "description": "JSON stringified representation of the song sections"
+        },
+        "category": {
+          "type": "string",
+          "description": "Category or genre of the song"
+        },
+        "conductorNotes": {
+          "type": "string",
+          "description": "Notes for the conductor"
+        },
+        "links": {
+          "type": "string",
+          "description": "JSON stringified array of links"
+        },
+        "vocalParts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of vocal parts (e.g., Soprano, Contralto)"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of the last update"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this song"
+        }
+      },
+      "required": ["id", "title", "content", "userId", "updatedAt"]
+    },
+    "Setlist": {
+      "title": "Setlist",
+      "description": "A collection of songs for a specific event",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the setlist"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the setlist"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the event"
+        },
+        "songIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of song IDs included in the setlist"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of the last update"
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this setlist"
+        }
+      },
+      "required": ["id", "title", "songIds", "userId", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/songs/{songId}": {
+      "schema": {
+        "$ref": "#/entities/Song"
+      },
+      "description": "Songs owned by a specific user"
+    },
+    "/users/{userId}/setlists/{setlistId}": {
+      "schema": {
+        "$ref": "#/entities/Setlist"
+      },
+      "description": "Setlists owned by a specific user"
+    }
+  }
+}

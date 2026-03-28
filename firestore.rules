@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users/{userId}/songs/{songId}
+    // Document ID: songId
+    // Fields:
+    //   - id: string (required) - Unique identifier for the song
+    //   - title: string (required) - Title of the song
+    //   - artist: string (optional) - Artist or author of the song
+    //   - content: string (required) - HTML or plain text content of the song lyrics
+    //   - sections: string (optional) - JSON stringified representation of the song sections
+    //   - category: string (optional) - Category or genre of the song
+    //   - conductorNotes: string (optional) - Notes for the conductor
+    //   - links: string (optional) - JSON stringified array of links
+    //   - vocalParts: list (optional) - List of vocal parts
+    //   - updatedAt: number (required) - Timestamp of the last update
+    //   - userId: string (required) - The ID of the user who owns this song
+    //
+    // Collection: users/{userId}/setlists/{setlistId}
+    // Document ID: setlistId
+    // Fields:
+    //   - id: string (required) - Unique identifier for the setlist
+    //   - title: string (required) - Title of the setlist
+    //   - date: string (optional) - Date of the event
+    //   - songIds: list (required) - Array of song IDs included in the setlist
+    //   - updatedAt: number (required) - Timestamp of the last update
+    //   - userId: string (required) - The ID of the user who owns this setlist
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    // Check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource path
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Validate required fields exist
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    // Validate string length
+    function validStringLength(field, minLen, maxLen) {
+      return request.resource.data[field] is string &&
+        request.resource.data[field].size() >= minLen &&
+        request.resource.data[field].size() <= maxLen;
+    }
+
+    // Validate optional string
+    function isValidOptionalString(field, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // Validate list
+    function isValidList(listField, maxSize) {
+      return !(listField in request.resource.data) ||
+             (request.resource.data[listField] is list && request.resource.data[listField].size() <= maxSize);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidSong(userId) {
+      return hasRequiredFields(['id', 'title', 'content', 'userId', 'updatedAt']) &&
+             request.resource.data.userId == userId &&
+             validStringLength('id', 1, 100) &&
+             validStringLength('title', 1, 200) &&
+             validStringLength('content', 1, 500000) && // Allow large content for lyrics
+             request.resource.data.updatedAt is number &&
+             isValidOptionalString('artist', 200) &&
+             isValidOptionalString('sections', 500000) &&
+             isValidOptionalString('category', 100) &&
+             isValidOptionalString('conductorNotes', 10000) &&
+             isValidOptionalString('links', 10000) &&
+             isValidList('vocalParts', 50);
+    }
+
+    function isValidSetlist(userId) {
+      return hasRequiredFields(['id', 'title', 'songIds', 'userId', 'updatedAt']) &&
+             request.resource.data.userId == userId &&
+             validStringLength('id', 1, 100) &&
+             validStringLength('title', 1, 200) &&
+             request.resource.data.updatedAt is number &&
+             isValidOptionalString('date', 100) &&
+             isValidList('songIds', 500);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId}/songs/{songId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSong(userId);
+      allow update: if isOwner(userId) && isValidSong(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    match /users/{userId}/setlists/{setlistId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidSetlist(userId);
+      allow update: if isOwner(userId) && isValidSetlist(userId);
+      allow delete: if isOwner(userId);
+    }
+  }
+}
