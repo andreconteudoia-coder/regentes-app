@@ -1,4 +1,5 @@
 import React from 'react';
+import { cleanLyricsForWhatsapp } from '../../lib/cleanText';
 import { ArrowLeft, Presentation, Save, Copy, Download, Share2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { SearchCard } from './SearchCard';
@@ -68,9 +69,10 @@ export const EditorView: React.FC<EditorViewProps> = ({
       });
     }
 
-    // Add lyrics (strip HTML tags)
+
+    // Add lyrics (strip HTML tags and clean)
     if (currentSong.content) {
-      const plainText = currentSong.content.replace(/<[^>]+>/g, '\n').replace(/\n\s*\n/g, '\n\n').trim();
+      const plainText = cleanLyricsForWhatsapp(currentSong.content);
       text += `\n📝 *Letra:*\n${plainText}`;
     }
 
@@ -125,7 +127,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               </Button>
               <div className="flex gap-2">
                 <Button variant="ghost" className="flex-1" icon={Copy} onClick={() => {
-                  const plainText = currentSong.content ? currentSong.content.replace(/<[^>]+>/g, '\n').replace(/\n\s*\n/g, '\n\n').trim() : '';
+                  const plainText = currentSong.content ? cleanLyricsForWhatsapp(currentSong.content) : '';
                   navigator.clipboard.writeText(plainText);
                   alert('Copiado para a área de transferência!');
                 }}>Copiar</Button>
