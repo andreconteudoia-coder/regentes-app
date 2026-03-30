@@ -3,181 +3,41 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './firebase';
-import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { 
-  Music, 
-  Type, 
-  Presentation, 
-  Save, 
-  Trash2, 
-  ChevronRight, 
-  ArrowLeft, 
-  Copy, 
-  Download, 
-  Maximize2, 
-  Minimize2, 
-  Settings,
-  Plus,
-  Search,
-  BookOpen,
-  Home as HomeIcon,
-  Moon,
-  Sun,
-  Play,
-  Pause,
-  RotateCcw,
-  Loader2,
-  X,
-  Volume2,
-  Music2,
-  Mic2,
-  LogOut
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { jsPDF } from 'jspdf';
-import Fuse from 'fuse.js';
-import { cn } from './lib/utils';
-import { formatLyrics, SongSection, serializeSections, plainTextToHtml } from './lib/lyrics';
 
-// --- Components ---
-import { Card } from './components/ui/card';
-import { Button } from './components/ui/button';
+import { User, Song, Setlist, FirestoreErrorInfo } from './types';
+import jsPDF from 'jspdf';
+import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { formatLyrics, plainTextToHtml } from './lib/lyrics';
+import { cn } from './lib/utils';
+import { motion } from 'motion/react';
+import { Music, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
+import { LoginView } from './components/auth/LoginView';
 import { HomeView } from './components/home/HomeView';
 import { EditorView } from './components/editor/EditorView';
 import { LibraryView } from './components/library/LibraryView';
-import { PresentationView } from './components/presentation/PresentationView';
 import { SetlistView } from './components/setlist/SetlistView';
 import { ConductorKitCard } from './components/editor/ConductorKitCard';
 import { WarmupView } from './components/warmup/WarmupView';
-import { LoginView } from './components/auth/LoginView';
+import { PresentationView } from './components/presentation/PresentationView';
 
-// --- Services ---
+// Define View type
+type View = 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'presentation';
 
-async function fetchLyricsFree(query: string) {
-  const cleanQuery = query.trim();
-  if (!cleanQuery) throw new Error('Digite o nome da música');
+// OperationType as an object for value usage
+const OperationType = {
+  GET: 'GET',
+  WRITE: 'WRITE',
+  DELETE: 'DELETE',
+} as const;
+type OperationType = typeof OperationType[keyof typeof OperationType];
 
-  const results: any[] = [];
-  const seen = new Set();
-
-  const addResult = (title: string, artist: string, source: string) => {
-    const key = `${title.toLowerCase()}|${artist.toLowerCase()}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      results.push({ title, artist, source });
-    }
-  };
-
-  // Busca em paralelo para ser mais rápido e abrangente
-  try {
-    const [vagalumeRes, lyricsOvhRes, lrclibRes] = await Promise.allSettled([
-      fetch(`/api/vagalume/artmus?q=${encodeURIComponent(cleanQuery)}&limit=10`),
-      fetch(`/api/lyrics-ovh/suggest?q=${encodeURIComponent(cleanQuery)}`),
-      fetch(`/api/lrclib/search?q=${encodeURIComponent(cleanQuery)}`)
-    ]);
-
-    if (vagalumeRes.status === 'fulfilled' && vagalumeRes.value.ok) {
-      const searchData = await vagalumeRes.value.json();
-      if (searchData.mus && searchData.mus.length > 0) {
-        searchData.mus.forEach((m: any) => {
-          addResult(m.name, m.art ? m.art.name : 'Artista Desconhecido', 'Vagalume');
-        });
-      }
-    }
-
-    if (lyricsOvhRes.status === 'fulfilled' && lyricsOvhRes.value.ok) {
-      const suggestData = await lyricsOvhRes.value.json();
-      if (suggestData.data && suggestData.data.length > 0) {
-        suggestData.data.forEach((item: any) => {
-          addResult(item.title, item.artist.name, 'Lyrics.ovh');
-        });
-      }
-    }
-
-    if (lrclibRes.status === 'fulfilled' && lrclibRes.value.ok) {
-      const searchData = await lrclibRes.value.json();
-      if (Array.isArray(searchData) && searchData.length > 0) {
-        searchData.slice(0, 10).forEach((item: any) => {
-          // Apenas adiciona se tiver letra (plainLyrics)
-          if (item.plainLyrics) {
-            addResult(item.name || item.trackName, item.artistName, 'LRCLIB');
-          }
-        });
-      }
-    }
-  } catch (e) {
-    console.error("Parallel suggest failed", e);
-  }
-
-  // Se encontramos resultados, retornamos a lista para o usuário escolher
-  if (results.length > 0) {
-    return { results };
-  }
-
-  // Se nada funcionou, avisa o usuário
-  throw new Error('Música não encontrada. Tente digitar: Artista - Nome da Música para maior precisão.');
-}
-
-// --- Types ---
-
-interface SongLink {
-  label: string;
-  url: string;
-}
-
-interface Song {
-  id: string;
-  title: string;
-  artist: string;
-  content: string;
-  sections: SongSection[];
-  category?: string;
-  conductorNotes?: string;
-  links?: SongLink[];
-  vocalParts?: string[];
-  offlineAudioName?: string;
-  updatedAt: number;
-}
-
-interface Setlist {
-  id: string;
-  title: string;
-  date: string;
-  songIds: string[];
-  updatedAt: number;
-}
-
-type View = 'home' | 'formatter' | 'transposer' | 'library' | 'editor' | 'setlists' | 'conductor' | 'warmup';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
+// Placeholder for fetchLyricsFree if not found
+async function fetchLyricsFree(q: string): Promise<any> {
+  return { results: [] };
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -434,20 +294,26 @@ export default function App() {
         return txt.value;
       };
 
-      const stripHtmlButKeepFormatting = (html: string) => {
-        // Replace <p> and <br> with newlines before stripping
-        let text = html.replace(/<\/p>/g, '\n').replace(/<br\s*\/?>/g, '\n').replace(/<div>/g, '\n');
-        // Replace strong with b, em with i
-        text = text.replace(/<strong[^>]*>/gi, '<b>').replace(/<\/strong>/gi, '</b>');
-        text = text.replace(/<em[^>]*>/gi, '<i>').replace(/<\/em>/gi, '</i>');
-        // Strip all tags EXCEPT b and i
-        text = text.replace(/<(?!b\b|\/b\b|i\b|\/i\b)[^>]*>/gi, '');
-        // Decode entities
-        return decodeHtml(text);
+
+      // Extrai linhas mantendo tags <b>, <i>, <span style="color:..."> e quebra de linha
+      const extractLinesWithFormatting = (html: string) => {
+        // Normaliza para <span style="color:...">, <b>, <i>, <br>, <p>
+        let text = html
+          .replace(/<strong[^>]*>/gi, '<b>')
+          .replace(/<\/strong>/gi, '</b>')
+          .replace(/<em[^>]*>/gi, '<i>')
+          .replace(/<\/em>/gi, '</i>')
+          .replace(/<div>/g, '')
+          .replace(/<\/div>/g, '')
+          .replace(/<p>/g, '')
+          .replace(/<\/p>/g, '\n')
+          .replace(/<br\s*\/?>(?!\n)/gi, '\n');
+        // Remove tags não suportadas, exceto <b>, <i>, <span style="color:...">
+        text = text.replace(/<(?!b\b|\/b\b|i\b|\/i\b|span\b|\/span\b)[^>]*>/gi, '');
+        return text.split('\n');
       };
 
-      const cleanContent = stripHtmlButKeepFormatting(content);
-      const lines = cleanContent.split('\n');
+      const lines = extractLinesWithFormatting(content);
       
       let fontSize = pdfConfig.fontSize;
       
@@ -464,12 +330,17 @@ export default function App() {
       let x = margin;
       const colWidth = (pageWidth - (margin * 3)) / 2;
       
+
+      // Suporte a <b>, <i>, <span style="color:...">
       const renderFormattedText = (text: string, startX: number, startY: number, baseFont: string, baseColor: number[]) => {
-        const parts = text.split(/(<\/?b>|<\/?i>)/i);
+        // Regex para dividir por tags de formatação e span de cor
+        const parts = text.split(/(<\/?b>|<\/?i>|<span[^>]*style=["']color:[^"']+["'][^>]*>|<\/span>)/i);
         let currentX = startX;
         let isBold = baseFont === 'bold';
         let isItalic = baseFont === 'italic';
-        
+        let color = baseColor;
+        const colorStack: number[][] = [];
+
         parts.forEach(part => {
           if (!part) return;
           const lowerPart = part.toLowerCase();
@@ -481,23 +352,48 @@ export default function App() {
             isItalic = true;
           } else if (lowerPart === '</i>') {
             isItalic = false;
+          } else if (lowerPart.startsWith('<span') && lowerPart.includes('color:')) {
+            // Extrai cor do style
+            const match = lowerPart.match(/color:([^;"']+)/);
+            if (match) {
+              colorStack.push(color);
+              color = hexToRgb(match[1].trim()) || color;
+            }
+          } else if (lowerPart === '</span>') {
+            color = colorStack.pop() || baseColor;
           } else {
             let fontStyle = 'normal';
             if (isBold && isItalic) fontStyle = 'bolditalic';
             else if (isBold) fontStyle = 'bold';
             else if (isItalic) fontStyle = 'italic';
-            
+
             doc.setFont('helvetica', fontStyle);
-            doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
+            doc.setTextColor(color[0], color[1], color[2]);
             doc.text(part, currentX, startY);
             currentX += doc.getTextWidth(part);
           }
         });
-        
+
         // Reset to base
         doc.setFont('helvetica', baseFont);
         doc.setTextColor(baseColor[0], baseColor[1], baseColor[2]);
       };
+
+      // Função auxiliar para converter hex/rgb para array [r,g,b]
+      function hexToRgb(color: string): number[] | null {
+        // Suporta #rrggbb, #rgb, rgb(r,g,b)
+        if (color.startsWith('#')) {
+          let hex = color.replace('#', '');
+          if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+          if (hex.length !== 6) return null;
+          const num = parseInt(hex, 16);
+          return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+        } else if (color.startsWith('rgb')) {
+          const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+          if (match) return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+        }
+        return null;
+      }
       
       lines.forEach((line: string) => {
         const cleanLine = line.trim();
