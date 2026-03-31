@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import ReactQuill from 'react-quill-new';
 import { Link as LinkIcon, Plus, Trash2, Mic2, Upload, Music } from 'lucide-react';
 import { Button } from '../ui/button';
 import { set, del } from 'idb-keyval';
+import { plainTextToHtml } from '../../lib/lyrics';
 
 interface SongDetailsCardProps {
   currentSong: {
@@ -31,6 +32,21 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
   editorRef,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUppercase, setIsUppercase] = useState(false);
+  const prevContentRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // add a simple 'Aa' label for the uppercase button in Quill icons (non-critical)
+    try {
+      const QuillConstructor = (ReactQuill as any).Quill;
+      if (QuillConstructor && QuillConstructor.import) {
+        const icons = QuillConstructor.import('ui/icons');
+        if (icons) icons['uppercase'] = 'Aa';
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
 
   const handleAddLink = () => {
     const links = currentSong.links || [];
@@ -240,7 +256,9 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
       </div>
 
       <div className="space-y-1">
-        <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Letra</label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Letra</label>
+        </div>
         
         {/* Visual display of Title and Artist */}
         {(currentSong.title || currentSong.artist) && (
@@ -258,11 +276,31 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
             onChange={(content: string) => setCurrentSong((prev: any) => ({...prev, content}))}
             placeholder="Cole aqui a letra da música..."
             modules={{
-              toolbar: [
-                ['bold', 'italic', 'underline'],
-                [{ 'color': [] }, { 'background': [] }],
-                ['clean']
-              ],
+              toolbar: {
+                container: [
+                  ['bold', 'italic', 'underline', 'uppercase'],
+                  [{ 'color': [] }, { 'background': [] }],
+                  ['clean']
+                ],
+                handlers: {
+                  uppercase: () => {
+                    if (!isUppercase) {
+                      prevContentRef.current = currentSong.content || '';
+                      const tmp = document.createElement('div');
+                      tmp.innerHTML = currentSong.content || '';
+                      const text = (tmp.textContent || tmp.innerText || '').replace(/\u00A0/g, ' ');
+                      const upper = text.toUpperCase();
+                      const newHtml = plainTextToHtml(upper);
+                      setCurrentSong({ ...currentSong, content: newHtml });
+                      setIsUppercase(true);
+                    } else {
+                      setCurrentSong({ ...currentSong, content: prevContentRef.current || currentSong.content });
+                      prevContentRef.current = null;
+                      setIsUppercase(false);
+                    }
+                  }
+                }
+              }
             }}
           />
         </div>
