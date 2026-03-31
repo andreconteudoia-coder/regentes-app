@@ -252,6 +252,9 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showResults, setShowResults] = useState(false);
 
+  // Help modal state (shows support phone when requested)
+  const [showHelp, setShowHelp] = useState(false);
+
   const [editorMode, setEditorMode] = useState<'search' | 'tools'>('search');
 
   const filteredSongs = songs.filter(song => 
@@ -1110,9 +1113,8 @@ export default function App() {
             <div className="space-y-4">
               <h4 className="text-xs font-bold uppercase tracking-widest text-[#5C5F66]">Suporte</h4>
               <ul className="text-sm space-y-2">
-                <li><a href="#" className="hover:text-primary transition-colors">Ajuda</a></li>
+                <li><button onClick={() => setShowHelp(true)} className="hover:text-primary transition-colors">Ajuda</button></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Privacidade</a></li>
-                <li><a href="https://wa.me/5511966740577" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">WhatsApp: (11) 96674-0577</a></li>
               </ul>
             </div>
           </div>
@@ -1121,6 +1123,23 @@ export default function App() {
           © 2026 Regentify • Todos os direitos reservados
         </div>
       </footer>
+
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowHelp(false)} />
+          <div className="relative bg-bg-card rounded-lg p-6 w-full max-w-md text-left shadow-xl border border-white/5">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Ajuda & Suporte</h3>
+              <button onClick={() => setShowHelp(false)} className="text-sm text-[#909296] hover:text-white">Fechar</button>
+            </div>
+            <p className="mb-4 text-sm">Para suporte rápido, envie uma mensagem para:</p>
+            <a href="https://wa.me/5511966740577" target="_blank" rel="noreferrer" className="text-primary font-bold">WhatsApp: (11) 96674-0577</a>
+            <div className="mt-6 flex justify-end">
+              <button onClick={() => window.open('https://wa.me/5511966740577', '_blank')} className="bg-[#25D366] text-white px-4 py-2 rounded-lg">Abrir no WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
