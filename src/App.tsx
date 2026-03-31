@@ -411,12 +411,14 @@ export default function App() {
       // Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
-      doc.setTextColor(0, 0, 0);
+      // Title in red
+      doc.setTextColor(200, 0, 0);
       doc.text(currentSong.title || 'Sem Título', margin, margin + 10);
       
-      doc.setFont('helvetica', 'normal');
+      // Artist in black and bold
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
-      doc.setTextColor(100, 100, 100);
+      doc.setTextColor(0, 0, 0);
       doc.text(currentSong.artist || 'Artista Desconhecido', margin, margin + 18);
       
       doc.setDrawColor(220, 220, 220);
