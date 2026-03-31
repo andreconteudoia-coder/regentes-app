@@ -1,42 +1,36 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import ReactQuill from 'react-quill-new';
-import { Link as LinkIcon, Plus, Trash2, Mic2, Upload, Music } from 'lucide-react';
+import { Link as LinkIcon, Plus, Trash2, Upload, Music, Mic2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { set, del } from 'idb-keyval';
 import { plainTextToHtml } from '../../lib/lyrics';
 
 interface SongDetailsCardProps {
   currentSong: {
-    id: string;
-    title: string;
-    artist: string;
-    content: string;
+    id?: string;
+    title?: string;
+    artist?: string;
+    content?: string;
     category?: string;
     conductorNotes?: string;
     links?: { label: string; url: string }[];
     vocalParts?: string[];
-    offlineAudioName?: string;
+    offlineAudioName?: string | null;
   };
   setCurrentSong: (song: any) => void;
   editorRef: React.RefObject<any>;
 }
 
-const VOCAL_PARTS = ['Soprano', 'Contralto', 'Tenor', 'Baixo', 'Solista'];
-
 const Quill = ReactQuill as any;
 
-export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
-  currentSong,
-  setCurrentSong,
-  editorRef,
-}) => {
+export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({ currentSong, setCurrentSong, editorRef }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isUppercase, setIsUppercase] = useState(false);
   const prevContentRef = useRef<string | null>(null);
+  const [isUppercase, setIsUppercase] = useState(false);
 
   useEffect(() => {
-    // add a simple 'Aa' label for the uppercase button in Quill icons (non-critical)
+    // Add simple icons for custom toolbar entries if Quill is available
     try {
       const QuillConstructor = (ReactQuill as any).Quill;
       if (QuillConstructor && QuillConstructor.import) {
@@ -44,6 +38,14 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
         if (icons) {
           icons['uppercase'] = 'Aa';
           icons['undo'] = '↺';
+          // voice buttons: short visible labels so toolbar shows them
+          icons['voiceS'] = 'Soprano';
+          icons['voiceC'] = 'Contralto';
+          icons['voiceT'] = 'Tenor';
+          icons['voiceB'] = 'Baixo';
+          icons['voiceSol'] = 'Solista';
+          icons['voiceAll'] = 'Todos';
+          icons['clearVoice'] = '✖';
         }
       }
     } catch (e) {
@@ -51,12 +53,57 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
     }
   }, []);
 
+  const voiceColors: Record<string, string> = {
+    'Soprano': '#FFD7D7',
+    'Contralto': '#D7F0FF',
+    'Tenor': '#E8F5D7',
+    'Baixo': '#F3E1FF',
+    'Solista': '#FFF3CC'
+  };
+
+  const escapeHtml = (unsafe: string) => {
+    return unsafe.replace(/[&<>"']/g, function (c) {
+      switch (c) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#039;';
+        default: return c;
+      }
+    });
+  };
+
+  const applyVoiceTag = (voice: string) => {
+    try {
+      const quill = editorRef && (editorRef as any).current && (editorRef as any).current.getEditor && (editorRef as any).current.getEditor();
+      if (!quill) return;
+      const sel = quill.getSelection();
+      const color = voiceColors[voice] || '#FFFFE0';
+      if (!sel) return;
+      if (sel.length === 0) {
+        // no selection: insert a mapping like "s= Soprano" at cursor
+        const shortMap: Record<string,string> = { 'Soprano':'S', 'Contralto':'C', 'Tenor':'T', 'Baixo':'B', 'Solista':'Sol', 'Todos':'Todos' };
+        const label = shortMap[voice] || (voice.charAt(0) || 'v');
+        const mapping = `${label.toLowerCase()}= ${voice}`;
+        quill.insertText(sel.index, mapping + ' ');
+        // move cursor after inserted mapping and trailing space
+        quill.setSelection(sel.index + mapping.length + 1, 0);
+      } else {
+        // replace selection with wrapped HTML
+        const selected = quill.getText(sel.index, sel.length);
+        const safe = escapeHtml(selected);
+        quill.deleteText(sel.index, sel.length);
+        quill.clipboard.dangerouslyPasteHTML(sel.index, `<span data-voice="${voice}" style="background-color:${color};padding:2px 4px;border-radius:4px;">${safe}</span>`);
+      }
+    } catch (err) {
+      console.error('applyVoiceTag error', err);
+    }
+  };
+
   const handleAddLink = () => {
     const links = currentSong.links || [];
-    setCurrentSong({
-      ...currentSong,
-      links: [...links, { label: '', url: '' }]
-    });
+    setCurrentSong({ ...currentSong, links: [...links, { label: '', url: '' }] });
   };
 
   const handleUpdateLink = (index: number, field: 'label' | 'url', value: string) => {
@@ -70,24 +117,12 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
     setCurrentSong({ ...currentSong, links });
   };
 
-  const toggleVocalPart = (part: string) => {
-    const parts = currentSong.vocalParts || [];
-    if (parts.includes(part)) {
-      setCurrentSong({ ...currentSong, vocalParts: parts.filter(p => p !== part) });
-    } else {
-      setCurrentSong({ ...currentSong, vocalParts: [...parts, part] });
-    }
-  };
-
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      // Ensure we have an ID to save against
       const songId = currentSong.id || crypto.randomUUID();
-      
-      // Save the file to IndexedDB using the song ID as the key
       await set(`audio_${songId}`, file);
       setCurrentSong({ ...currentSong, id: songId, offlineAudioName: file.name });
       alert('Áudio offline salvo com sucesso neste dispositivo!');
@@ -99,7 +134,7 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
 
   const handleRemoveAudio = async () => {
     try {
-      await del(`audio_${currentSong.id}`);
+      if (currentSong.id) await del(`audio_${currentSong.id}`);
       setCurrentSong({ ...currentSong, offlineAudioName: null });
     } catch (error) {
       console.error('Error removing audio:', error);
@@ -111,20 +146,20 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Título</label>
-          <input 
-            type="text" 
-            value={currentSong.title}
-            onChange={e => setCurrentSong({...currentSong, title: e.target.value})}
+          <input
+            type="text"
+            value={currentSong.title || ''}
+            onChange={e => setCurrentSong({ ...currentSong, title: e.target.value })}
             placeholder="Ex: Quão Grande é o Meu Deus"
             className="w-full bg-bg-card border border-white/5 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
           />
         </div>
         <div className="space-y-1">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Artista / Ministério</label>
-          <input 
-            type="text" 
-            value={currentSong.artist}
-            onChange={e => setCurrentSong({...currentSong, artist: e.target.value})}
+          <input
+            type="text"
+            value={currentSong.artist || ''}
+            onChange={e => setCurrentSong({ ...currentSong, artist: e.target.value })}
             placeholder="Ex: Soraya Moraes"
             className="w-full bg-bg-card border border-white/5 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
           />
@@ -134,9 +169,9 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Categoria / Hinário</label>
-          <select 
+          <select
             value={currentSong.category || 'Hinos'}
-            onChange={e => setCurrentSong({...currentSong, category: e.target.value})}
+            onChange={e => setCurrentSong({ ...currentSong, category: e.target.value })}
             className="w-full bg-bg-card border border-white/5 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
           >
             <option value="Hinos">Hinos</option>
@@ -149,34 +184,13 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
         </div>
         <div className="space-y-1">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Notas do Regente</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={currentSong.conductorNotes || ''}
-            onChange={e => setCurrentSong({...currentSong, conductorNotes: e.target.value})}
+            onChange={e => setCurrentSong({ ...currentSong, conductorNotes: e.target.value })}
             placeholder="Ex: Atenção ao compasso 12..."
             className="w-full bg-bg-card border border-white/5 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
           />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold flex items-center gap-2">
-          <Mic2 size={14} /> Vozes Ativas
-        </label>
-        <div className="flex flex-wrap gap-2">
-          {VOCAL_PARTS.map(part => (
-            <button
-              key={part}
-              onClick={() => toggleVocalPart(part)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                (currentSong.vocalParts || []).includes(part)
-                ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                : 'bg-[#2C2E33] text-[#909296] hover:bg-[#383A40]'
-              }`}
-            >
-              {part}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -190,21 +204,21 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
         <div className="space-y-2">
           {(currentSong.links || []).map((link, index) => (
             <div key={index} className="flex gap-2 items-center">
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={link.label}
                 onChange={e => handleUpdateLink(index, 'label', e.target.value)}
                 placeholder="Título (Ex: Soprano)"
                 className="flex-1 bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
               />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 value={link.url}
                 onChange={e => handleUpdateLink(index, 'url', e.target.value)}
                 placeholder="URL (YouTube/Drive)"
                 className="flex-[2] bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
               />
-              <button 
+              <button
                 onClick={() => handleRemoveLink(index)}
                 className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
               >
@@ -220,10 +234,10 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
           <Music size={14} /> Áudio Offline (Neste Dispositivo)
         </label>
         <div className="flex items-center gap-4 bg-bg-card border border-white/5 rounded-lg p-3">
-          <input 
-            type="file" 
-            accept="audio/*" 
-            className="hidden" 
+          <input
+            type="file"
+            accept="audio/*"
+            className="hidden"
             ref={fileInputRef}
             onChange={handleAudioUpload}
           />
@@ -233,7 +247,7 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
                 <Music size={16} />
                 <span className="truncate max-w-[200px] sm:max-w-xs">{currentSong.offlineAudioName}</span>
               </div>
-              <button 
+              <button
                 onClick={handleRemoveAudio}
                 className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
                 title="Remover áudio offline"
@@ -244,10 +258,10 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
           ) : (
             <div className="flex-1 flex items-center justify-between">
               <span className="text-sm text-[#909296]">Nenhum áudio salvo neste dispositivo.</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                icon={Upload} 
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Upload}
                 onClick={() => fileInputRef.current?.click()}
               >
                 Selecionar MP3
@@ -262,7 +276,7 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
         <div className="flex items-center justify-between">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Letra</label>
         </div>
-        
+
         {/* Visual display of Title and Artist */}
         {(currentSong.title || currentSong.artist) && (
           <div className="mb-4 p-4 bg-[#1A1B1E] rounded-lg border border-white/5">
@@ -272,27 +286,25 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
         )}
 
         <div className="bg-bg-card border border-white/5 rounded-lg overflow-hidden">
-          <Quill 
+          <Quill
             ref={editorRef}
             theme="snow"
-            value={currentSong.content}
-            onChange={(content: string) => setCurrentSong((prev: any) => ({...prev, content}))}
+            value={currentSong.content || ''}
+            onChange={(content: string) => setCurrentSong((prev: any) => ({ ...prev, content }))}
             placeholder="Cole aqui a letra da música..."
             modules={{
               toolbar: {
                 container: [
-                  ['bold', 'italic', 'underline', 'uppercase', 'undo'],
+                  ['bold', 'italic', 'underline', 'uppercase', 'undo', 'voiceS', 'voiceC', 'voiceT', 'voiceB', 'voiceSol'],
                   [{ 'color': [] }, { 'background': [] }],
                   ['clean']
                 ],
                 handlers: {
                   uppercase: () => {
-                    // Preserve the original HTML and uppercase only text nodes so structure/line breaks remain
                     try {
                       prevContentRef.current = currentSong.content || '';
                       const wrapper = document.createElement('div');
                       wrapper.innerHTML = currentSong.content || '';
-
                       const walkAndUpper = (node: Node) => {
                         node.childNodes.forEach((child) => {
                           if (child.nodeType === Node.TEXT_NODE) {
@@ -302,13 +314,11 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
                           }
                         });
                       };
-
                       walkAndUpper(wrapper);
                       const newHtml = wrapper.innerHTML;
                       setCurrentSong({ ...currentSong, content: newHtml });
                       setIsUppercase(true);
                     } catch (err) {
-                      // Fallback: simple text-only transform
                       prevContentRef.current = currentSong.content || '';
                       const tmp = document.createElement('div');
                       tmp.innerHTML = currentSong.content || '';
@@ -324,10 +334,35 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
                       setCurrentSong({ ...currentSong, content: prevContentRef.current });
                       prevContentRef.current = null;
                       setIsUppercase(false);
-                    } else {
-                      // No snapshot available
-                      // Optional: give feedback
-                      // alert('Nada para desfazer');
+                    }
+                  }
+                  ,
+                  voiceS: () => applyVoiceTag('Soprano'),
+                  voiceC: () => applyVoiceTag('Contralto'),
+                  voiceT: () => applyVoiceTag('Tenor'),
+                  voiceB: () => applyVoiceTag('Baixo'),
+                  voiceSol: () => applyVoiceTag('Solista')
+                  ,
+                  voiceAll: () => applyVoiceTag('Todos'),
+                  clearVoice: () => {
+                    try {
+                      const quill = editorRef && (editorRef as any).current && (editorRef as any).current.getEditor && (editorRef as any).current.getEditor();
+                      if (!quill) return;
+                      const sel = quill.getSelection();
+                      if (!sel) return;
+                      if (sel.length === 0) {
+                        const [bl, offset] = quill.getLine(sel.index);
+                        const lineText = bl?.domNode?.innerText || '';
+                        const index = sel.index - offset;
+                        quill.deleteText(index, lineText.length);
+                        quill.insertText(index, lineText);
+                      } else {
+                        const selected = quill.getText(sel.index, sel.length);
+                        quill.deleteText(sel.index, sel.length);
+                        quill.insertText(sel.index, selected);
+                      }
+                    } catch (err) {
+                      console.error('clearVoice error', err);
                     }
                   }
                 }

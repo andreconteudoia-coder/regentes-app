@@ -111,3 +111,49 @@
 .ql-snow.ql-toolbar .ql-picker-label.ql-active {
   color: var(--color-primary) !important;
 }
+
+/* Voice button pill styling */
+/* Voice button pill styling: ensure proper spacing and wrapping */
+.ql-toolbar .ql-formats {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Target any toolbar button whose class starts with ql-voice (ql-voiceS, ql-voiceC, ...)
+   and the clear voice button. Use explicit margins to avoid relying on gap inheritance. */
+.ql-toolbar button[class^="ql-voice"],
+.ql-toolbar button.ql-clearVoice {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px !important;
+  margin-right: 8px !important;
+  border-radius: 9999px !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: var(--text-color) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+  min-width: 36px;
+  height: 32px;
+  font-weight: 600;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  z-index: 1;
+}
+
+.ql-toolbar button[class^="ql-voice"].ql-active {
+  background: var(--color-primary) !important;
+  color: white !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+
+/* Ensure toolbar allows wrapping and has adequate height */
+.ql-toolbar {
+  display: flex !important;
+  align-items: center;
+  flex-wrap: wrap !important;
+  gap: 6px;
+  padding: 6px !important;
+}

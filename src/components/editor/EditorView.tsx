@@ -4,6 +4,7 @@ import { ArrowLeft, Presentation, Save, Copy, Download, Share2 } from 'lucide-re
 import { Button } from '../ui/button';
 import { SearchCard } from './SearchCard';
 import { SongDetailsCard } from './SongDetailsCard';
+import { VoiceToolsCard } from './VoiceToolsCard';
 import { FormattingCard } from './FormattingCard';
 import { AudioToolsCard } from './AudioToolsCard';
 
@@ -117,6 +118,11 @@ export const EditorView: React.FC<EditorViewProps> = ({
             />
 
             <SongDetailsCard 
+              currentSong={currentSong}
+              setCurrentSong={setCurrentSong}
+              editorRef={editorRef}
+            />
+            <VoiceToolsCard
               currentSong={currentSong}
               setCurrentSong={setCurrentSong}
               editorRef={editorRef}
