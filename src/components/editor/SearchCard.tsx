@@ -23,6 +23,7 @@ export const SearchCard: React.FC<SearchCardProps> = ({
   setShowResults,
   searchResults,
   handleSelectResult,
+  
 }) => {
   return (
     <Card className="space-y-6 border-primary/20 bg-primary/5 p-4 sm:p-6 shadow-feminine">

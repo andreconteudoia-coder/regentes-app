@@ -14,6 +14,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { formatLyrics, plainTextToHtml } from './lib/lyrics';
 import { cn } from './lib/utils';
 import Fuse from 'fuse.js';
+import { suggestHymnsByTheme } from './lib/themes';
 import { motion } from 'motion/react';
 import { Music, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { LoginView } from './components/auth/LoginView';
@@ -463,19 +464,70 @@ export default function App() {
       const lines = extractLinesWithFormatting(content);
       
       let fontSize = pdfConfig.fontSize;
-      
-      // Determine columns
+
+      // Determine initial columns setting
       let useColumns = false;
       if (pdfConfig.columns === '2') {
         useColumns = true;
       } else if (pdfConfig.columns === 'auto') {
         useColumns = lines.length > 45;
       }
-      
+
+      // Auto-fit logic: try combinations of columns (1/2), reduce fontSize (down to minFontSize)
+      // and reduce margins (down to minMargin) to force the hymn to fit on one A4 page.
+      const headerBase = 30; // base header area
+      const footerBase = 20; // base footer area
+      const initialMargin = margin;
+      const minFontSize = 6;
+      const minMargin = 10;
+      let fitted = false;
+      let finalMargin = initialMargin;
+
+      const estimateTotalHeight = (fs: number, lineFactor: number) => {
+        let total = 0;
+        for (const line of lines) {
+          const cleanLine = line.trim();
+          if (!cleanLine && line !== '') continue;
+          const plainTextLine = cleanLine.replace(/<[^>]*>?/gm, '').trim();
+          const isHeader = (plainTextLine.startsWith('[') && plainTextLine.endsWith(']')) ||
+                          /^(refrão|coro|verso|ponte|intro|final|chorus|verse|bridge|outro|refrão\s*\d+|coro\s*\d+|verso\s*\d+|ponte\s*\d+|chorus\s*\d+|verse\s*\d+|bridge\s*\d+)/i.test(plainTextLine);
+          const base = isHeader ? (fs + 2) : fs;
+          const lh = (base * lineFactor) + 1;
+          total += lh + (isHeader ? 2 : 0);
+        }
+        return total;
+      };
+
+      // Try reducing margin and font size; also try 1 or 2 columns
+      for (let cols of (useColumns ? [2,1] : [1,2])) {
+        for (let m = initialMargin; m >= minMargin; m -= 2) {
+          const availableH = pageHeight - m - headerBase - footerBase;
+          for (let fs = pdfConfig.fontSize; fs >= minFontSize; fs -= 1) {
+            // reduce line spacing factor slightly for aggressive fit
+            for (const lineFactor of [0.6, 0.55, 0.5]) {
+              const totalH = estimateTotalHeight(fs, lineFactor);
+              const perColH = cols === 2 ? (totalH / 2) : totalH;
+              if (perColH <= availableH) {
+                fontSize = fs;
+                useColumns = cols === 2;
+                finalMargin = m;
+                fitted = true;
+                break;
+              }
+            }
+            if (fitted) break;
+          }
+          if (fitted) break;
+        }
+        if (fitted) break;
+      }
+
+      // Apply chosen settings
+      const usedMargin = finalMargin;
       doc.setFontSize(fontSize);
-      let y = margin + 30;
-      let x = margin;
-      const colWidth = (pageWidth - (margin * 3)) / 2;
+      let y = usedMargin + headerBase;
+      let x = usedMargin;
+      const colWidth = (pageWidth - (usedMargin * 3)) / 2;
       
 
       // Suporte a <b>, <i>, <span style="color:...">
@@ -562,14 +614,14 @@ export default function App() {
           doc.setTextColor(0, 0, 0);
         }
         
-        if (y > pageHeight - margin - 10) { // Leave space for footer
-          if (useColumns && x === margin) {
-            x = margin + colWidth + margin;
-            y = margin + 30;
+        if (y > pageHeight - usedMargin - 10) { // Leave space for footer
+          if (useColumns && x === usedMargin) {
+            x = usedMargin + colWidth + usedMargin;
+            y = usedMargin + 30;
           } else {
             doc.addPage();
-            y = margin + 15;
-            x = margin;
+            y = usedMargin + 15;
+            x = usedMargin;
           }
         }
         
@@ -670,6 +722,20 @@ export default function App() {
       alert(err.message || 'Música não encontrada. Tente digitar o nome da música ou Artista - Música');
     } finally {
       setIsSearching(false);
+    }
+  };
+
+  const handleThemeSuggest = (theme: string) => {
+    if (!theme) return;
+    const suggestions = suggestHymnsByTheme(theme, songs, 10);
+    if (suggestions && suggestions.length) {
+      setSearchResults(suggestions.map(s => ({ title: s.title, artist: s.artist, source: s.source || 'Biblioteca' })));
+      setShowResults(true);
+      setSearchQuery(theme);
+    } else {
+      setSearchResults([]);
+      setShowResults(false);
+      alert('Nenhum hino encontrado para este tema na sua biblioteca.');
     }
   };
 
@@ -928,6 +994,7 @@ export default function App() {
                 handleSaveSong={handleSaveSong}
                 generatePDF={generatePDF}
                 setIsPresenting={setIsPresenting}
+                handleThemeSuggest={handleThemeSuggest}
               />
             </motion.div>
           )}
@@ -1040,6 +1107,7 @@ export default function App() {
               <ul className="text-sm space-y-2">
                 <li><a href="#" className="hover:text-primary transition-colors">Ajuda</a></li>
                 <li><a href="#" className="hover:text-primary transition-colors">Privacidade</a></li>
+                <li><a href="https://wa.me/5511966740577" target="_blank" rel="noreferrer" className="hover:text-primary transition-colors">WhatsApp: (11) 96674-0577</a></li>
               </ul>
             </div>
           </div>

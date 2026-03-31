@@ -26,6 +26,7 @@ interface EditorViewProps {
   handleSaveSong: () => void;
   generatePDF: () => void;
   setIsPresenting: (isPresenting: boolean) => void;
+  handleThemeSuggest?: (theme: string) => void;
 }
 
 export const EditorView: React.FC<EditorViewProps> = ({
@@ -47,6 +48,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   handleSaveSong,
   generatePDF,
   setIsPresenting,
+  handleThemeSuggest,
 }) => {
 
   const handleShareWhatsApp = () => {
@@ -111,6 +113,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
               setShowResults={setShowResults}
               searchResults={searchResults}
               handleSelectResult={handleSelectResult}
+              handleThemeSuggest={handleThemeSuggest}
             />
 
             <SongDetailsCard 
