@@ -13,6 +13,7 @@ import { collection, query, orderBy, onSnapshot, doc, setDoc, deleteDoc } from '
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { formatLyrics, plainTextToHtml } from './lib/lyrics';
 import { cn } from './lib/utils';
+import Fuse from 'fuse.js';
 import { motion } from 'motion/react';
 import { Music, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { LoginView } from './components/auth/LoginView';
@@ -35,9 +36,145 @@ const OperationType = {
 } as const;
 type OperationType = typeof OperationType[keyof typeof OperationType];
 
-// Placeholder for fetchLyricsFree if not found
+
+// Busca sugestões de letras usando Vagalume e Lyrics.ovh
+// Busca sugestões de letras usando Letras.mus.br, Vagalume e Lyrics.ovh
 async function fetchLyricsFree(q: string): Promise<any> {
-  return { results: [] };
+  const qLower = q.toLowerCase().trim();
+  const results: Array<{ title: string; artist: string; source: string; extra?: any }> = [];
+
+  // Helper: create slug from text
+  const toSlug = (text: string) => text
+    .toLowerCase()
+    .trim()
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  // If user provided artist (e.g. "title - artist"), try direct letras.mus.br URL first
+  const separators = [' - ', ' – ', ' — ', ' by ', ' de '];
+  for (const sep of separators) {
+    if (q.includes(sep)) {
+      const parts = q.split(sep).map(s => s.trim()).filter(Boolean);
+      let guessedArtist = '';
+      let guessedTitle = '';
+      if (parts.length >= 2) {
+        if (sep === ' by ' || sep === ' de ') {
+          guessedTitle = parts[0];
+          guessedArtist = parts.slice(1).join(sep).trim();
+        } else {
+          guessedArtist = parts[0];
+          guessedTitle = parts.slice(1).join(sep).trim();
+        }
+      }
+
+      if (guessedArtist && guessedTitle) {
+        try {
+          const artistSlug = toSlug(guessedArtist);
+          const musicSlug = toSlug(guessedTitle);
+          const res = await fetch(`/api/letrasmus/${artistSlug}/${musicSlug}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.lyrics) {
+              return { content: data.lyrics, title: guessedTitle, artist: guessedArtist };
+            }
+          }
+        } catch (e) {
+          // ignore and fallthrough to other providers
+        }
+      }
+      break;
+    }
+  }
+
+  // 1. Try LRCLIB first (more accurate for gospel/BR)
+  try {
+    const lrRes = await fetch(`/api/lrclib/search?q=${encodeURIComponent(q)}`);
+    if (lrRes.ok) {
+      const data = await lrRes.json();
+      const items = data.results || data.data || data.items || data;
+      if (Array.isArray(items) && items.length) {
+        items.forEach((it: any) => {
+          // Try to extract title/artist from possible shapes
+          const title = it.title || it.name || it.trackName || it.music || '';
+          const artist = it.artistName || (it.artist && (it.artist.name || it.artist)) || it.author || '';
+          if (title) results.push({ title: String(title).trim(), artist: String(artist).trim(), source: 'LRCLIB', extra: it });
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 2. Then Letras.mus.br search
+  try {
+    const letrasRes = await fetch(`/api/letrasmus/search?q=${encodeURIComponent(q)}`);
+    if (letrasRes.ok) {
+      const data = await letrasRes.json();
+      if (data && data.results && data.results.length > 0) {
+        data.results.forEach((r: any) => results.push({ title: r.title, artist: r.artist, source: 'Letras.mus.br' }));
+      }
+    }
+  } catch (e) {}
+
+  // 3. Vagalume next
+  try {
+    const vagalumeRes = await fetch(`/api/vagalume/search?q=${encodeURIComponent(q)}`);
+    if (vagalumeRes.ok) {
+      const data = await vagalumeRes.json();
+      if (data && data.results && data.results.length > 0) {
+        data.results.forEach((r: any) => results.push({ title: r.title, artist: r.artist, source: 'Vagalume' }));
+      }
+    }
+  } catch (e) {}
+
+  // 4. Finally, Lyrics.ovh but limited and deprioritized
+  try {
+    const ovhRes = await fetch(`/api/lyrics-ovh/suggest?q=${encodeURIComponent(q)}`);
+    if (ovhRes.ok) {
+      const data = await ovhRes.json();
+      const items = data.data || data.results || [];
+      if (Array.isArray(items) && items.length) {
+        items.slice(0, 5).forEach((r: any) => results.push({ title: r.title, artist: r.artist && (r.artist.name || r.artist) || '', source: 'Lyrics.ovh' }));
+      }
+    }
+  } catch (e) {}
+
+  if (results.length === 0) return { results: [] };
+
+  // Use Fuse.js to rank results by title+artist
+  try {
+    const fuse = new Fuse(results, { keys: ['title', 'artist'], threshold: 0.4, ignoreLocation: true });
+    const fuseRes = fuse.search(q);
+    let ranked = fuseRes.map(r => ({ ...(r.item), score: r.score }));
+
+    // Prefer exact title matches (case-insensitive) above fuzzy scores
+    ranked.sort((a, b) => {
+      const aExact = a.title.toLowerCase() === qLower ? 1 : (a.title.toLowerCase().includes(qLower) ? 0.5 : 0);
+      const bExact = b.title.toLowerCase() === qLower ? 1 : (b.title.toLowerCase().includes(qLower) ? 0.5 : 0);
+      if (aExact !== bExact) return bExact - aExact;
+      const aScore = typeof a.score === 'number' ? a.score : 1;
+      const bScore = typeof b.score === 'number' ? b.score : 1;
+      return aScore - bScore;
+    });
+
+    // Map back and limit to 10
+    const out = ranked.slice(0, 10).map(r => ({ title: r.title, artist: r.artist, source: r.source }));
+    return { results: out };
+  } catch (e) {
+    // If Fuse fails, return deduped results with LRCLIB items first
+    const seen = new Set<string>();
+    const dedup: any[] = [];
+    // LRCLIB first
+    results.filter(r => r.source === 'LRCLIB').concat(results.filter(r => r.source !== 'LRCLIB')).forEach(r => {
+      const key = (r.title + '|' + r.artist).toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        dedup.push({ title: r.title, artist: r.artist, source: r.source });
+      }
+    });
+    return { results: dedup.slice(0, 10) };
+  }
 }
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
@@ -284,15 +421,25 @@ export default function App() {
       doc.setDrawColor(220, 220, 220);
       doc.line(margin, margin + 22, pageWidth - margin, margin + 22);
       
-      // Content
-      const content = currentSong.content || '';
-      
+      // Content (decode HTML entities and normalize spaces)
       // Better HTML stripping and entity decoding
       const decodeHtml = (html: string) => {
         const txt = document.createElement('textarea');
         txt.innerHTML = html;
         return txt.value;
       };
+
+      let content = currentSong.content || '';
+      // First decode HTML entities (so &nbsp; -> non-breaking space)
+      try {
+        content = decodeHtml(content);
+      } catch (e) {
+        // If decode fails for any reason, keep original
+      }
+      // Replace any remaining literal &nbsp; with normal spaces
+      content = content.replace(/&nbsp;/g, ' ');
+      // Normalize multiple consecutive spaces to a single space
+      content = content.replace(/\u00A0/g, ' ').replace(/\s{2,}/g, ' ');
 
 
       // Extrai linhas mantendo tags <b>, <i>, <span style="color:..."> e quebra de linha
