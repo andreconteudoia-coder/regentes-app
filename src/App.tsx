@@ -529,7 +529,9 @@ export default function App() {
       doc.setFontSize(fontSize);
       let y = usedMargin + headerBase;
       let x = usedMargin;
-      const colWidth = (pageWidth - (usedMargin * 3)) / 2;
+      // Add a gutter between columns to avoid crowding when formatting is applied
+      const gutter = 12; // mm
+      const colWidth = (pageWidth - (usedMargin * 2) - gutter) / 2;
       
 
       // Suporte a <b>, <i>, <span style="color:...">
@@ -618,11 +620,12 @@ export default function App() {
         
         if (y > pageHeight - usedMargin - 10) { // Leave space for footer
           if (useColumns && x === usedMargin) {
-            x = usedMargin + colWidth + usedMargin;
-            y = usedMargin + 30;
+            // Move to second column using gutter spacing
+            x = usedMargin + colWidth + gutter;
+            y = usedMargin + headerBase;
           } else {
             doc.addPage();
-            y = usedMargin + 15;
+            y = usedMargin + headerBase;
             x = usedMargin;
           }
         }
