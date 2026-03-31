@@ -41,7 +41,10 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
       const QuillConstructor = (ReactQuill as any).Quill;
       if (QuillConstructor && QuillConstructor.import) {
         const icons = QuillConstructor.import('ui/icons');
-        if (icons) icons['uppercase'] = 'Aa';
+        if (icons) {
+          icons['uppercase'] = 'Aa';
+          icons['undo'] = '↺';
+        }
       }
     } catch (e) {
       // ignore
@@ -278,13 +281,34 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
             modules={{
               toolbar: {
                 container: [
-                  ['bold', 'italic', 'underline', 'uppercase'],
+                  ['bold', 'italic', 'underline', 'uppercase', 'undo'],
                   [{ 'color': [] }, { 'background': [] }],
                   ['clean']
                 ],
                 handlers: {
                   uppercase: () => {
-                    if (!isUppercase) {
+                    // Preserve the original HTML and uppercase only text nodes so structure/line breaks remain
+                    try {
+                      prevContentRef.current = currentSong.content || '';
+                      const wrapper = document.createElement('div');
+                      wrapper.innerHTML = currentSong.content || '';
+
+                      const walkAndUpper = (node: Node) => {
+                        node.childNodes.forEach((child) => {
+                          if (child.nodeType === Node.TEXT_NODE) {
+                            if (child.nodeValue) child.nodeValue = child.nodeValue.toUpperCase();
+                          } else {
+                            walkAndUpper(child);
+                          }
+                        });
+                      };
+
+                      walkAndUpper(wrapper);
+                      const newHtml = wrapper.innerHTML;
+                      setCurrentSong({ ...currentSong, content: newHtml });
+                      setIsUppercase(true);
+                    } catch (err) {
+                      // Fallback: simple text-only transform
                       prevContentRef.current = currentSong.content || '';
                       const tmp = document.createElement('div');
                       tmp.innerHTML = currentSong.content || '';
@@ -293,10 +317,17 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({
                       const newHtml = plainTextToHtml(upper);
                       setCurrentSong({ ...currentSong, content: newHtml });
                       setIsUppercase(true);
-                    } else {
-                      setCurrentSong({ ...currentSong, content: prevContentRef.current || currentSong.content });
+                    }
+                  },
+                  undo: () => {
+                    if (prevContentRef.current) {
+                      setCurrentSong({ ...currentSong, content: prevContentRef.current });
                       prevContentRef.current = null;
                       setIsUppercase(false);
+                    } else {
+                      // No snapshot available
+                      // Optional: give feedback
+                      // alert('Nada para desfazer');
                     }
                   }
                 }
