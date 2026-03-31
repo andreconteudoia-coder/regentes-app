@@ -900,7 +900,7 @@ export default function App() {
               <div className="w-8 h-8 bg-gradient-feminine rounded-lg flex items-center justify-center text-white group-hover:rotate-12 transition-transform shadow-lg shadow-primary/20">
                 <Music size={20} />
               </div>
-              <span className="font-bold text-white text-xl tracking-tight font-maestra">Maestra Coral</span>
+              <span className="font-bold text-white text-xl tracking-tight font-maestra">Regentify</span>
             </div>
             
             {user && (
@@ -1085,7 +1085,7 @@ export default function App() {
               <div className="w-6 h-6 bg-gradient-feminine rounded flex items-center justify-center text-white">
                 <Music size={14} />
               </div>
-              <span className="font-bold text-white tracking-tight font-maestra">Maestra Coral</span>
+              <span className="font-bold text-white tracking-tight font-maestra">Regentify</span>
             </div>
             <p className="text-xs text-[#5C5F66] max-w-xs">
               Sua ferramenta definitiva para regência e preparação vocal. 
@@ -1113,7 +1113,7 @@ export default function App() {
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-[#2C2E33] text-center text-[10px] text-[#5C5F66] uppercase tracking-widest font-bold">
-          © 2026 Maestra Coral • Todos os direitos reservados
+          © 2026 Regentify • Todos os direitos reservados
         </div>
       </footer>
 

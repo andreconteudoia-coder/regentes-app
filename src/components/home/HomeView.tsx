@@ -19,9 +19,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="max-w-4xl mx-auto space-y-12">
       <div className="text-center space-y-4">
         <h1 className="text-6xl font-bold tracking-tight text-white font-maestra">
-          Maestra <span className="text-gradient">Coral</span>
+          Regentify
         </h1>
-        <p className="text-[#909296] text-lg max-w-lg mx-auto">A ferramenta definitiva para regentes que buscam excelência e organização coral.</p>
+        <p className="text-[#909296] text-lg max-w-lg mx-auto">Organize, conduza e evolua sua regência</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
