@@ -6,6 +6,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { auth, db } from './firebase';
+import { getSubscription } from './lib/subscription';
+import { ExpirationBanner } from './components/ui/ExpirationBanner';
+import { PlanScreen } from './components/auth/PlanScreen';
 
 import { User, Song, Setlist, FirestoreErrorInfo } from './types';
 import jsPDF from 'jspdf';
@@ -203,16 +206,39 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // --- Main App ---
 
+type Subscription = {
+  email: string;
+  plan: 'monthly' | 'yearly';
+  expiresAt: string;
+  status: 'active' | 'inactive';
+};
+
+function isSubscriptionValid(sub: Subscription | null): boolean {
+  if (!sub) return false;
+  if (sub.status !== 'active') return false;
+  if (new Date(sub.expiresAt) < new Date()) return false;
+  return true;
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('home');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+      if (currentUser && currentUser.email) {
+        const sub = await getSubscription(currentUser.email);
+        setSubscription(sub as Subscription);
+      } else {
+        setSubscription(null);
+      }
+      setSubscriptionChecked(true);
     });
     return () => unsubscribe();
   }, []);
@@ -913,8 +939,144 @@ export default function App() {
 
   const [highlightVoice, setHighlightVoice] = useState<string | null>(null);
 
+  // Aguarda checagem da assinatura
+  if (loading || !subscriptionChecked) {
+    return <div className="flex items-center justify-center min-h-screen text-white">Carregando...</div>;
+  }
+
+  // Se não está logado, mostra tela de login
+  if (!user) {
+    return <LoginView />;
+  }
+
+  // Admin master: acesso total independente de assinatura
+  const ADMIN_EMAIL = 'andredesenvolvedorti@gmail.com';
+  if (user.email === ADMIN_EMAIL) {
+    // Renderiza o app completo, apenas adicionando o banner de admin no topo
+    return (
+      <div className="min-h-screen bg-[#141517] text-[#C1C2C5] font-sans selection:bg-primary/30">
+        <div className="bg-green-900 text-green-200 px-4 py-2 text-center">Acesso total de administrador</div>
+        {/* Banner de expiração, se existir */}
+        {subscription?.expiresAt && (
+          <ExpirationBanner expiresAt={subscription.expiresAt} />
+        )}
+        {/* Navigation */}
+        <nav className="border-b border-[#2C2E33] bg-[#1A1B1E]/80 backdrop-blur-md sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-6 h-16 flex items-center gap-2">
+            <span className="font-bold text-white text-xl tracking-tight font-maestra">Regentify</span>
+          </div>
+        </nav>
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-6 py-12">
+          {view === 'home' && (
+            <motion.div key="home" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <HomeView setView={setView} setEditorMode={setEditorMode} setCurrentSong={setCurrentSong} songs={songs} />
+            </motion.div>
+          )}
+          {view === 'editor' && (
+            <motion.div key="editor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <EditorView mode={editorMode} setView={setView} searchQuery={searchQuery} setSearchQuery={setSearchQuery} isSearching={isSearching} handleQuickSearch={handleQuickSearch} showResults={showResults} setShowResults={setShowResults} searchResults={searchResults} handleSelectResult={handleSelectResult} currentSong={currentSong} setCurrentSong={setCurrentSong} editorRef={editorRef} pdfConfig={pdfConfig} setPdfConfig={setPdfConfig} handleSaveSong={handleSaveSong} generatePDF={generatePDF} setIsPresenting={setIsPresenting} handleThemeSuggest={handleThemeSuggest} />
+            </motion.div>
+          )}
+          {view === 'library' && (
+            <motion.div key="library" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <LibraryView setView={setView} setCurrentSong={setCurrentSong} librarySearch={librarySearch} setLibrarySearch={setLibrarySearch} filteredSongs={filteredSongs} handleDeleteSong={handleDeleteSong} />
+            </motion.div>
+          )}
+          {view === 'setlists' && (
+            <motion.div key="setlists" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <SetlistView setView={setView} setlists={setSetlists} saveSetlists={saveSetlists} songs={songs} />
+            </motion.div>
+          )}
+          {view === 'conductor' && (
+            <motion.div key="conductor" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <ConductorKitCard setView={setView} />
+            </motion.div>
+          )}
+          {view === 'warmup' && (
+            <motion.div key="warmup" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
+              <WarmupView setView={setView} />
+            </motion.div>
+          )}
+        </main>
+        {/* Presentation Mode Overlay */}
+        {isPresenting && (
+          <PresentationView currentSong={currentSong} setIsPresenting={setIsPresenting} autoScroll={autoScroll} setAutoScroll={setAutoScroll} scrollSpeed={scrollSpeed} setScrollSpeed={setScrollSpeed} fontSize={fontSize} setFontSize={setFontSize} highlightVoice={highlightVoice} setHighlightVoice={setHighlightVoice} />
+        )}
+        {/* Footer */}
+        <footer className="border-t border-[#2C2E33] mt-20 py-12 bg-[#1A1B1E]">
+          <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className="space-y-4 text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2">
+                <div className="w-6 h-6 bg-gradient-feminine rounded flex items-center justify-center text-white">
+                  <Music size={14} />
+                </div>
+                <span className="font-bold text-white tracking-tight font-maestra">Regentify</span>
+              </div>
+              <p className="text-xs text-[#5C5F66] max-w-xs">Sua ferramenta definitiva para regência e preparação vocal. Feito para regentes, por regentes.</p>
+            </div>
+            <div className="flex gap-12">
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-[#5C5F66]">Ferramentas</h4>
+                <ul className="text-sm space-y-2">
+                  <li><button onClick={() => setView('editor')} className="hover:text-primary transition-colors">Editor</button></li>
+                  <li><button onClick={() => setView('editor')} className="hover:text-primary transition-colors">Formatador</button></li>
+                  <li><button onClick={() => setView('library')} className="hover:text-primary transition-colors">Biblioteca</button></li>
+                </ul>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-[#5C5F66]">Suporte</h4>
+                <ul className="text-sm space-y-2">
+                  <li><button onClick={() => setShowHelp(true)} className="hover:text-primary transition-colors">Ajuda</button></li>
+                  <li><a href="#" className="hover:text-primary transition-colors">Privacidade</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-[#2C2E33] text-center text-[10px] text-[#5C5F66] uppercase tracking-widest font-bold">
+            © 2026 Regentify • Todos os direitos reservados
+          </div>
+        </footer>
+        {showHelp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/50" onClick={() => setShowHelp(false)} />
+            <div className="relative bg-bg-card rounded-lg p-6 w-full max-w-md text-left shadow-xl border border-white/5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold">Ajuda & Suporte</h3>
+                <button onClick={() => setShowHelp(false)} className="text-sm text-[#909296] hover:text-white">Fechar</button>
+              </div>
+              <p className="mb-4 text-sm">Para suporte rápido, envie uma mensagem para:</p>
+              <a href="https://wa.me/5511966740577" target="_blank" rel="noreferrer" className="text-primary font-bold">WhatsApp: (11) 96674-0577</a>
+              <div className="mt-6 flex justify-end">
+                <button onClick={() => window.open('https://wa.me/5511966740577', '_blank')} className="bg-[#25D366] text-white px-4 py-2 rounded-lg">Abrir no WhatsApp</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Se logado mas não tem assinatura válida, mostra mensagem e botão para planos
+  if (!isSubscriptionValid(subscription)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-6">
+        {/* Nome Regentify no topo */}
+        <span className="font-bold text-white text-2xl tracking-tight font-maestra mb-4">Regentify</span>
+        <h2 className="text-2xl font-bold text-white">Você não possui assinatura ativa</h2>
+        <p className="text-gray-400">Faça a compra de um plano para liberar o acesso.</p>
+        <PlanScreen />
+      </div>
+    );
+  }
+
+  // Se assinatura válida, mostra app normalmente
   return (
     <div className="min-h-screen bg-[#141517] text-[#C1C2C5] font-sans selection:bg-primary/30">
+      {/* Banner de expiração */}
+      {subscription?.expiresAt && (
+        <ExpirationBanner expiresAt={subscription.expiresAt} />
+      )}
       {/* Navigation */}
       <nav className="border-b border-[#2C2E33] bg-[#1A1B1E]/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
