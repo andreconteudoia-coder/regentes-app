@@ -122,11 +122,6 @@ export const EditorView: React.FC<EditorViewProps> = ({
               setCurrentSong={setCurrentSong}
               editorRef={editorRef}
             />
-            <VoiceToolsCard
-              currentSong={currentSong}
-              setCurrentSong={setCurrentSong}
-              editorRef={editorRef}
-            />
           </div>
 
           <div className="space-y-6">

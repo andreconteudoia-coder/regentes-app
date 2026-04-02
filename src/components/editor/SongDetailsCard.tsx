@@ -191,85 +191,7 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({ currentSong, s
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold flex items-center gap-2">
-            <LinkIcon size={14} /> Links de Ensaio (YouTube/Drive)
-          </label>
-          <Button variant="ghost" size="sm" icon={Plus} onClick={handleAddLink}>Adicionar</Button>
-        </div>
-        <div className="space-y-2">
-          {(currentSong.links || []).map((link, index) => (
-            <div key={index} className="flex gap-2 items-center">
-              <input
-                type="text"
-                value={link.label}
-                onChange={e => handleUpdateLink(index, 'label', e.target.value)}
-                placeholder="Título (Ex: Soprano)"
-                className="flex-1 bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
-              />
-              <input
-                type="text"
-                value={link.url}
-                onChange={e => handleUpdateLink(index, 'url', e.target.value)}
-                placeholder="URL (YouTube/Drive)"
-                className="flex-[2] bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
-              />
-              <button
-                onClick={() => handleRemoveLink(index)}
-                className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold flex items-center gap-2">
-          <Music size={14} /> Áudio Offline (Neste Dispositivo)
-        </label>
-        <div className="flex items-center gap-4 bg-bg-card border border-white/5 rounded-lg p-3">
-          <input
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleAudioUpload}
-          />
-          {currentSong.offlineAudioName ? (
-            <div className="flex-1 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-primary">
-                <Music size={16} />
-                <span className="truncate max-w-[200px] sm:max-w-xs">{currentSong.offlineAudioName}</span>
-              </div>
-              <button
-                onClick={handleRemoveAudio}
-                className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
-                title="Remover áudio offline"
-              >
-                <Trash2 size={16} />
-              </button>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-between">
-              <span className="text-sm text-[#909296]">Nenhum áudio salvo neste dispositivo.</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Upload}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Selecionar MP3
-              </Button>
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-[#5C5F66]">O arquivo de áudio fica salvo apenas no navegador deste dispositivo para uso sem internet.</p>
-      </div>
-
-      <div className="space-y-1">
+          <div className="space-y-1">
         <div className="flex items-center justify-between">
           <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold">Letra</label>
         </div>
@@ -368,6 +290,88 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({ currentSong, s
           />
         </div>
       </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold flex items-center gap-2">
+            <LinkIcon size={14} /> Links de Ensaio (YouTube/Drive)
+          </label>
+          <Button variant="ghost" size="sm" icon={Plus} onClick={handleAddLink}>Adicionar</Button>
+        </div>
+        <div className="space-y-2">
+          {(currentSong.links || []).map((link, index) => (
+            <div key={index} className="flex gap-2 items-center">
+              <input
+                type="text"
+                value={link.label}
+                onChange={e => handleUpdateLink(index, 'label', e.target.value)}
+                placeholder="Título (Ex: Soprano)"
+                className="flex-1 bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
+              />
+              <input
+                type="text"
+                value={link.url}
+                onChange={e => handleUpdateLink(index, 'url', e.target.value)}
+                placeholder="URL (YouTube/Drive)"
+                className="flex-[2] bg-bg-card border border-white/5 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
+              />
+              <button
+                onClick={() => handleRemoveLink(index)}
+                className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+  
+
+      <div className="space-y-3">
+        <label className="text-xs uppercase tracking-wider text-[#5C5F66] font-semibold flex items-center gap-2">
+          <Music size={14} /> Áudio Offline (Neste Dispositivo)
+        </label>
+        <div className="flex items-center gap-4 bg-bg-card border border-white/5 rounded-lg p-3">
+          <input
+            type="file"
+            accept="audio/*"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleAudioUpload}
+          />
+          {currentSong.offlineAudioName ? (
+            <div className="flex-1 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-primary">
+                <Music size={16} />
+                <span className="truncate max-w-[200px] sm:max-w-xs">{currentSong.offlineAudioName}</span>
+              </div>
+              <button
+                onClick={handleRemoveAudio}
+                className="p-1.5 text-[#5C5F66] hover:text-red-500 transition-colors"
+                title="Remover áudio offline"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-between">
+              <span className="text-sm text-[#909296]">Nenhum áudio salvo neste dispositivo.</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={Upload}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Selecionar MP3
+              </Button>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-[#5C5F66]">O arquivo de áudio fica salvo apenas no navegador deste dispositivo para uso sem internet.</p>
+      </div>
+
+
     </Card>
   );
 };
