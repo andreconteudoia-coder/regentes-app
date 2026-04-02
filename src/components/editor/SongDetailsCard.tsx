@@ -82,13 +82,10 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({ currentSong, s
       const color = voiceColors[voice] || '#FFFFE0';
       if (!sel) return;
       if (sel.length === 0) {
-        // no selection: insert a mapping like "s= Soprano" at cursor
-        const shortMap: Record<string,string> = { 'Soprano':'S', 'Contralto':'C', 'Tenor':'T', 'Baixo':'B', 'Solista':'Sol', 'Todos':'Todos' };
-        const label = shortMap[voice] || (voice.charAt(0) || 'v');
-        const mapping = `${label.toLowerCase()}= ${voice}`;
-        quill.insertText(sel.index, mapping + ' ');
-        // move cursor after inserted mapping and trailing space
-        quill.setSelection(sel.index + mapping.length + 1, 0);
+        // no selection: insert the voice name in red at cursor (e.g. "Soprano")
+        const insertHtml = `<span data-voice="${voice}" style="color:#EC407A;font-weight:700;">${voice}</span>&nbsp;`;
+        quill.clipboard.dangerouslyPasteHTML(sel.index, insertHtml);
+        quill.setSelection(sel.index + voice.length + 1, 0);
       } else {
         // replace selection with wrapped HTML
         const selected = quill.getText(sel.index, sel.length);
@@ -295,7 +292,7 @@ export const SongDetailsCard: React.FC<SongDetailsCardProps> = ({ currentSong, s
             modules={{
               toolbar: {
                 container: [
-                  ['bold', 'italic', 'underline', 'uppercase', 'undo', 'voiceS', 'voiceC', 'voiceT', 'voiceB', 'voiceSol'],
+                  ['bold', 'italic', 'underline', 'uppercase', 'undo', 'voiceS', 'voiceC', 'voiceT', 'voiceB', 'voiceSol', 'voiceAll'],
                   [{ 'color': [] }, { 'background': [] }],
                   ['clean']
                 ],

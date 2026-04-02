@@ -539,34 +539,52 @@ export default function App() {
 
       // Suporte a <b>, <i>, <span style="color:...">
       const renderFormattedText = (text: string, startX: number, startY: number, baseFont: string, baseColor: number[]) => {
-        // Regex para dividir por tags de formatação e span de cor
-        const parts = text.split(/(<\/?b>|<\/?i>|<span[^>]*style=["']color:[^"']+["'][^>]*>|<\/span>)/i);
+        // Regex para dividir por tags de formatação e spans
+        const parts = text.split(/(<\/?b>|<\/?i>|<span[^>]*>|<\/span>)/i);
         let currentX = startX;
         let isBold = baseFont === 'bold';
         let isItalic = baseFont === 'italic';
         let color = baseColor;
         const colorStack: number[][] = [];
+        const boldStack: boolean[] = [];
 
         parts.forEach(part => {
           if (!part) return;
           const lowerPart = part.toLowerCase();
           if (lowerPart === '<b>') {
+            boldStack.push(isBold);
             isBold = true;
           } else if (lowerPart === '</b>') {
-            isBold = false;
+            isBold = boldStack.pop() || false;
           } else if (lowerPart === '<i>') {
             isItalic = true;
           } else if (lowerPart === '</i>') {
             isItalic = false;
-          } else if (lowerPart.startsWith('<span') && lowerPart.includes('color:')) {
-            // Extrai cor do style
-            const match = lowerPart.match(/color:([^;"']+)/);
-            if (match) {
+          } else if (lowerPart.startsWith('<span')) {
+            // Check for data-voice attribute first
+            const dv = part.match(/data-voice=["']?([^"'\s>]+)["']?/i);
+            if (dv && dv[1]) {
+              // voice span -> render with red and bold
               colorStack.push(color);
-              color = hexToRgb(match[1].trim()) || color;
+              boldStack.push(isBold);
+              color = [236, 64, 122]; // RGB for #EC407A
+              isBold = true;
+            } else if (lowerPart.includes('color:')) {
+              // Extrai cor do style
+              const match = part.match(/color:([^;"'>]+)/i);
+              if (match) {
+                colorStack.push(color);
+                boldStack.push(isBold);
+                color = hexToRgb(match[1].trim()) || color;
+              }
+            } else {
+              // Generic span without color/data-voice: push current states
+              colorStack.push(color);
+              boldStack.push(isBold);
             }
           } else if (lowerPart === '</span>') {
             color = colorStack.pop() || baseColor;
+            isBold = boldStack.pop() || (baseFont === 'bold');
           } else {
             let fontStyle = 'normal';
             if (isBold && isItalic) fontStyle = 'bolditalic';
