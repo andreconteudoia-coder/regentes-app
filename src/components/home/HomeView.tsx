@@ -2,6 +2,13 @@ import React from 'react';
 import { Search, Mic2, BookOpen, Music, ChevronRight, FileText } from 'lucide-react';
 import { Card } from '../ui/card';
 
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
+import { useState, useEffect } from 'react';
+import { db } from '../../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { User } from '../../types';
+
 interface HomeViewProps {
   setView: (view: 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup') => void;
   setEditorMode: (mode: 'search' | 'tools') => void;
@@ -9,12 +16,67 @@ interface HomeViewProps {
   songs: any[];
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({
+export const HomeView: React.FC<HomeViewProps & { user?: User }> = ({
   setView,
   setEditorMode,
   setCurrentSong,
   songs,
+  user,
 }) => {
+
+
+  // Estado para anotação rápida no card
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date|null>(null);
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [savedNote, setSavedNote] = useState<string|null>(null);
+  const [savedDate, setSavedDate] = useState<Date|null>(null);
+
+  // Buscar anotação salva ao escolher data
+  useEffect(() => {
+    if (!user || !selectedDate) return;
+    const fetchNote = async () => {
+      setLoading(true);
+      const dateStr = selectedDate.toISOString().slice(0, 10);
+      const ref = doc(db, `users/${user.uid}/notes/${dateStr}`);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        setNote(snap.data().text || '');
+        setSavedNote(snap.data().text || '');
+        setSavedDate(selectedDate);
+      } else {
+        setNote('');
+        setSavedNote(null);
+        setSavedDate(null);
+      }
+      setLoading(false);
+    };
+    fetchNote();
+  }, [selectedDate, user]);
+
+  // Salvar anotação
+  const saveNote = async () => {
+    if (!user || !selectedDate) return;
+    setLoading(true);
+    const dateStr = selectedDate.toISOString().slice(0, 10);
+    const ref = doc(db, `users/${user.uid}/notes/${dateStr}`);
+    await setDoc(ref, { text: note, date: dateStr });
+    setSavedNote(note);
+    setSavedDate(selectedDate);
+    setShowCalendar(false);
+    setLoading(false);
+  };
+
+  // Reset fluxo para novo compromisso
+  const handleAddNew = () => {
+    setShowCalendar(true);
+    setSelectedDate(null);
+    setNote('');
+    setSavedNote(null);
+    setSavedDate(null);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-12">
       <div className="text-center space-y-4">
@@ -25,6 +87,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* <Card
+          onClick={() => setView('notes')}
+          className="flex flex-col items-center text-center gap-6 py-12 border-yellow-400/20 bg-yellow-400/5 cursor-pointer hover:bg-yellow-400/10 transition-colors min-h-[350px] justify-center relative"
+        >
+          <div className="w-20 h-20 rounded-2xl bg-yellow-400 flex items-center justify-center text-black shadow-lg shadow-yellow-400/30 mb-2">
+            <FileText size={36} />
+          </div>
+          <div>
+            <h3 className="text-2xl font-bold text-yellow-200 font-maestra">Anotações & Compromissos</h3>
+            <p className="text-sm text-yellow-100 mt-2">Organize seus compromissos e anotações pessoais com calendário.</p>
+          </div>
+        </Card> */}
         {/* Card: Buscar Letra */}
         <Card 
           onClick={() => { 

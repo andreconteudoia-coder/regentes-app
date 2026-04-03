@@ -22,6 +22,7 @@ import { motion } from 'motion/react';
 import { Music, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { LoginView } from './components/auth/LoginView';
 import { HomeView } from './components/home/HomeView';
+import { NotesView } from './components/home/NotesView';
 import { EditorView } from './components/editor/EditorView';
 import { LibraryView } from './components/library/LibraryView';
 import { SetlistView } from './components/setlist/SetlistView';
@@ -30,7 +31,7 @@ import { WarmupView } from './components/warmup/WarmupView';
 import { PresentationView } from './components/presentation/PresentationView';
 
 // Define View type
-type View = 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'presentation';
+type View = 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'presentation' | 'notes';
 
 // OperationType as an object for value usage
 const OperationType = {
@@ -985,7 +986,7 @@ export default function App() {
           )}
           {view === 'setlists' && (
             <motion.div key="setlists" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-              <SetlistView setView={setView} setlists={setSetlists} saveSetlists={saveSetlists} songs={songs} />
+              <SetlistView setView={setView} setlists={setlists} saveSetlists={saveSetlists} songs={songs} />
             </motion.div>
           )}
           {view === 'conductor' && (
