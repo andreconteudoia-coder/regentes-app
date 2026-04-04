@@ -23,6 +23,7 @@ import { Music, Sun, Moon, LogOut, Loader2 } from 'lucide-react';
 import { LoginView } from './components/auth/LoginView';
 import { HomeView } from './components/home/HomeView';
 import { NotesView } from './components/home/NotesView';
+import { CommitmentsView } from './components/home/CommitmentsView';
 import { EditorView } from './components/editor/EditorView';
 import { LibraryView } from './components/library/LibraryView';
 import { SetlistView } from './components/setlist/SetlistView';
@@ -31,7 +32,7 @@ import { WarmupView } from './components/warmup/WarmupView';
 import { PresentationView } from './components/presentation/PresentationView';
 
 // Define View type
-type View = 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'presentation' | 'notes';
+type View = 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'presentation' | 'notes' | 'commitments';
 
 // OperationType as an object for value usage
 const OperationType = {
@@ -1139,6 +1140,7 @@ export default function App() {
           <LoginView />
         ) : (
           <React.Fragment>
+
             {view === 'home' && (
               <motion.div
                 key="home"
@@ -1148,11 +1150,35 @@ export default function App() {
                 transition={{ duration: 0.2 }}
               >
                 <HomeView 
-                  setView={(v) => setView(v)} 
+                  setView={setView}
                   setEditorMode={setEditorMode}
-                  setCurrentSong={setCurrentSong} 
-                  songs={songs} 
+                  setCurrentSong={setCurrentSong}
+                  songs={songs}
                 />
+              </motion.div>
+            )}
+
+            {view === 'notes' && (
+              <motion.div
+                key="notes"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {user && <NotesView setView={setView} />}
+              </motion.div>
+            )}
+
+            {view === 'commitments' && (
+              <motion.div
+                key="commitments"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <CommitmentsView setView={setView} user={user} />
               </motion.div>
             )}
 

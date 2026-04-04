@@ -87,19 +87,20 @@ export const HomeView: React.FC<HomeViewProps & { user?: User }> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* <Card
-          onClick={() => setView('notes')}
-          className="flex flex-col items-center text-center gap-6 py-12 border-yellow-400/20 bg-yellow-400/5 cursor-pointer hover:bg-yellow-400/10 transition-colors min-h-[350px] justify-center relative"
+        {/* Card: Compromissos */}
+        <Card
+          onClick={() => setView('commitments')}
+          className="flex flex-col items-center text-center gap-6 py-12 border-blue-400/20 bg-blue-400/5 cursor-pointer hover:bg-blue-400/10 transition-colors min-h-[350px] justify-center relative"
         >
-          <div className="w-20 h-20 rounded-2xl bg-yellow-400 flex items-center justify-center text-black shadow-lg shadow-yellow-400/30 mb-2">
-            <FileText size={36} />
+          <div className="w-20 h-20 rounded-2xl bg-blue-400 flex items-center justify-center text-black shadow-lg shadow-blue-400/30 mb-2">
+            <span style={{ fontSize: 36, fontWeight: 'bold' }}>📅</span>
           </div>
           <div>
-            <h3 className="text-2xl font-bold text-yellow-200 font-maestra">Anotações & Compromissos</h3>
-            <p className="text-sm text-yellow-100 mt-2">Organize seus compromissos e anotações pessoais com calendário.</p>
+            <h3 className="text-2xl font-bold text-blue-200 font-maestra">Compromissos</h3>
+            <p className="text-sm text-blue-100 mt-2">Gerencie seus compromissos e lembretes importantes.</p>
           </div>
-        </Card> */}
-        {/* Card: Buscar Letra */}
+        </Card>
+
         <Card 
           onClick={() => { 
             setEditorMode('search');
