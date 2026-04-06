@@ -10,9 +10,9 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { User } from '../../types';
 
 interface HomeViewProps {
-  setView: (view: 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup') => void;
-  setEditorMode: (mode: 'search' | 'tools') => void;
-  setCurrentSong: (song: any) => void;
+setView: (view: 'home' | 'editor' | 'library' | 'setlists' | 'conductor' | 'warmup' | 'notes' | 'commitments') => void;  
+setEditorMode: (mode: 'search' | 'tools') => void;
+setCurrentSong: (song: any) => void;
   songs: any[];
 }
 
