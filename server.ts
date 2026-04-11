@@ -17,7 +17,10 @@ async function startServer() {
   // Firebase Admin
   if (!admin.apps.length) {
     admin.initializeApp({
-      credential: admin.credential.applicationDefault()
+      credential: admin.credential.applicationDefault(
+
+
+      )
     });
   }
 
@@ -30,7 +33,7 @@ async function startServer() {
     try {
       const event = req.body.event;
 
-      if (event !== "order.paid") {
+      if (event !== "order.approved") {
         return res.status(200).send("ignored");
       }
 
@@ -137,6 +140,34 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+
+  app.get("/api/check-subscription", async (req, res) => {
+  try {
+    const email = req.query.email;
+
+    if (!email) {
+      return res.json({ active: false });
+    }
+
+    const doc = await db.collection("subscriptions").doc(email).get();
+
+    if (!doc.exists) {
+      return res.json({ active: false });
+    }
+
+    const data = doc.data();
+
+    res.json({
+      active: data?.status === "active",
+      plan: data?.plan
+    });
+  } catch (error) {
+    res.status(500).json({ active: false });
+  }
+});
+
+
 }
 
 startServer();
