@@ -33,7 +33,7 @@ async function startServer() {
     try {
       const event = req.body.event;
 
-      if (event !== "order.approved") {
+      if (event !== "Pedido pago") {
         return res.status(200).send("ignored");
       }
 
