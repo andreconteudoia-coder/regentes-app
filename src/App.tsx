@@ -1073,6 +1073,7 @@ export default function App() {
                   setCurrentSong={setCurrentSong}
                   songs={songs}
                   user={user}
+                  subscription={subscription}
                 />
               </motion.div>
             )}

@@ -16,12 +16,13 @@ setCurrentSong: (song: any) => void;
   songs: any[];
 }
 
-export const HomeView: React.FC<HomeViewProps & { user?: User }> = ({
+export const HomeView: React.FC<HomeViewProps & { user?: User; subscription?: any }> = ({
   setView,
   setEditorMode,
   setCurrentSong,
   songs,
   user,
+  subscription,
 }) => {
 
 
@@ -77,6 +78,11 @@ export const HomeView: React.FC<HomeViewProps & { user?: User }> = ({
     setSavedDate(null);
   };
 
+
+  // Card de assinatura
+  const planoLabel = subscription?.plan === 'yearly' ? 'Anual' : 'Mensal';
+  const vencimento = subscription?.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString() : null;
+
   return (
     <div className="max-w-4xl mx-auto space-y-12">
       <div className="text-center space-y-4">
@@ -85,6 +91,17 @@ export const HomeView: React.FC<HomeViewProps & { user?: User }> = ({
         </h1>
         <p className="text-[#909296] text-lg max-w-lg mx-auto">Organize, conduza e evolua sua regência</p>
       </div>
+
+      {/* Card de Plano de Assinatura */}
+      {subscription?.status === 'active' && (
+        <div className="flex justify-center">
+          <div className="bg-bg-card border border-primary/30 rounded-2xl px-6 py-4 mb-4 flex flex-col items-center shadow-feminine min-w-[260px]">
+            <span className="text-xs uppercase tracking-widest text-primary font-bold mb-1">Assinatura ativa</span>
+            <div className="text-lg font-bold text-white mb-1">Plano: {planoLabel}</div>
+            {vencimento && <div className="text-sm text-[#909296]">Vencimento: <b>{vencimento}</b></div>}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card: Compromissos */}
