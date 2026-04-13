@@ -81,7 +81,21 @@ export const HomeView: React.FC<HomeViewProps & { user?: User; subscription?: an
 
   // Card de assinatura
   const planoLabel = subscription?.plan === 'yearly' ? 'Anual' : 'Mensal';
-  const vencimento = subscription?.expiresAt ? new Date(subscription.expiresAt).toLocaleDateString() : null;
+  // Calcula vencimento a partir de created, se não houver expiresAt
+  console.log('Subscription data:', subscription);
+  let vencimento: string | null = null;
+  if (subscription?.expiresAt) {
+    vencimento = new Date(subscription.expiresAt).toLocaleDateString();
+  } else if (
+    subscription?.createdAt &&
+    typeof subscription.createdAt === 'object' &&
+    'seconds' in subscription.createdAt
+  ) {
+    const createdDate = new Date(subscription.createdAt.seconds * 1000);
+    const expiresDate = new Date(createdDate);
+    expiresDate.setDate(createdDate.getDate() + 30);
+    vencimento = expiresDate.toLocaleDateString();
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-12">
