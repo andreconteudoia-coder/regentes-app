@@ -84,17 +84,23 @@ export const HomeView: React.FC<HomeViewProps & { user?: User; subscription?: an
   // Calcula vencimento a partir de created, se não houver expiresAt
   console.log('Subscription data:', subscription);
   let vencimento: string | null = null;
+  let diasRestantes: number | null = null;
   if (subscription?.expiresAt) {
-    vencimento = new Date(subscription.expiresAt).toLocaleDateString();
+    const expires = new Date(subscription.expiresAt);
+    vencimento = expires.toLocaleDateString();
+    const now = new Date();
+    diasRestantes = Math.max(0, Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   } else if (
     subscription?.createdAt &&
     typeof subscription.createdAt === 'object' &&
     'seconds' in subscription.createdAt
   ) {
-    const createdDate = new Date(subscription.createdAt.seconds * 1000);
-    const expiresDate = new Date(createdDate);
-    expiresDate.setDate(createdDate.getDate() + 30);
-    vencimento = expiresDate.toLocaleDateString();
+    const created = new Date(subscription.createdAt.seconds * 1000);
+    const expires = new Date(created);
+    expires.setDate(created.getDate() + 30);
+    vencimento = expires.toLocaleDateString();
+    const now = new Date();
+    diasRestantes = Math.max(0, Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
   }
 
   return (
@@ -113,6 +119,17 @@ export const HomeView: React.FC<HomeViewProps & { user?: User; subscription?: an
             <span className="text-xs uppercase tracking-widest text-primary font-bold mb-1">Assinatura ativa</span>
             <div className="text-lg font-bold text-white mb-1">Plano: {planoLabel}</div>
             {vencimento && <div className="text-sm text-[#909296]">Vencimento: <b>{vencimento}</b></div>}
+            {diasRestantes === 1 && (
+              <div className="bg-red-100 text-red-800 px-4 py-2 rounded mb-2 text-center mt-2">
+                Sua assinatura expira <b>amanhã</b>!<br />
+                <button
+                  className="bg-primary text-white px-3 py-1 rounded mt-2"
+                  onClick={() => window.location.href = 'https://regentify.vercel.app/'}
+                >
+                  Renovar agora
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
