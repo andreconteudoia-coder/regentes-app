@@ -3,7 +3,8 @@ import { useEffect } from "react";
 export default function Sucesso() {
   useEffect(() => {
     async function check() {
-      const email = localStorage.getItem("userEmail");
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get("email");
 
       const res = await fetch(
         "https://regentify-app.vercel.app/api/check-subscription?email=" + email

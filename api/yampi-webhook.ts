@@ -21,8 +21,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).send("ignored");
     }
 
-    const email = req.body.customer?.email;
-    const productName = req.body.order_items?.[0]?.name;
+  const email = req.body.resource?.customer?.data?.email;
+  const productName = req.body.resource?.items?.data?.[0]?.product;
 
     let plan = "monthly";
     if (productName?.toLowerCase().includes("anual")) {
