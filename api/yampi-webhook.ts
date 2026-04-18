@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const event = req.body.event;
 
-    if (event !== "order.approved" && event !== "Pedido pago") {
+    if (event !== "Pedido pago" && event !== "Pedido pago") {
       return res.status(200).send("ignored");
     }
 
