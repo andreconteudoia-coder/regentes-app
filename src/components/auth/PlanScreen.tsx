@@ -1,7 +1,8 @@
 
+import React from "react";
 import { Button } from '../ui/button';
 
-interface PlanScreenProps {
+export interface PlanScreenProps {
   creationDate?: string; // data de criação do plano (ISO string)
 }
 
