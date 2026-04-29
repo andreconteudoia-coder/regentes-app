@@ -114,7 +114,7 @@ service cloud.firestore {
     }
 
     match /users/{userId}/setlists/{setlistId} {
-      allow read: if isOwner(userId);
+      allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && isValidSetlist(userId);
       allow update: if isOwner(userId) && isValidSetlist(userId);
       allow delete: if isOwner(userId);
